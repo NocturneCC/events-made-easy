@@ -1,4 +1,4 @@
-package cc.nocturne.eventsmadeeasy.model;
+package cc.nocturne.eventsmadeeasy.ui;
 
 import lombok.extern.slf4j.Slf4j;
 import cc.nocturne.eventsmadeeasy.EventsPlugin;

@@ -1,4 +1,4 @@
-package cc.nocturne.eventsmadeeasy.model;
+package cc.nocturne.eventsmadeeasy;
 
 import net.runelite.client.config.Config;
 import net.runelite.client.config.ConfigGroup;

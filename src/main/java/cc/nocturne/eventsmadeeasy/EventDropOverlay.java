@@ -1,4 +1,4 @@
-package cc.nocturne.eventsmadeeasy.model;
+package cc.nocturne.eventsmadeeasy;
 
 import lombok.Getter;
 import net.runelite.api.Client;

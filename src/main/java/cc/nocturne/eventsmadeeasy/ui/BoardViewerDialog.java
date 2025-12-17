@@ -1,4 +1,4 @@
-package cc.nocturne.eventsmadeeasy.model;
+package cc.nocturne.eventsmadeeasy.ui;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;

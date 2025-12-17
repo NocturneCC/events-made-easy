@@ -1,14 +1,45 @@
-package cc.nocturne.eventsmadeeasy.model;
+package cc.nocturne.eventsmadeeasy;
+
+import cc.nocturne.eventsmadeeasy.model.EventBoard;
+import cc.nocturne.eventsmadeeasy.ui.BoardViewerDialog;
+import cc.nocturne.eventsmadeeasy.ui.BoardsPanel;
 
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.annotations.SerializedName;
 import com.google.inject.Provides;
+
+import java.awt.Graphics2D;
+import java.awt.Image;
+import java.awt.Window;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
+
+import javax.imageio.ImageIO;
+import javax.inject.Inject;
+import javax.swing.SwingUtilities;
+
 import lombok.extern.slf4j.Slf4j;
+
 import net.runelite.api.Client;
 import net.runelite.api.Player;
 import net.runelite.api.events.GameTick;
+import net.runelite.client.audio.AudioPlayer;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
@@ -17,15 +48,13 @@ import net.runelite.client.game.ItemManager;
 import net.runelite.client.game.ItemStack;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
-import cc.nocturne.eventsmadeeasy.model.EventBoard;
-import cc.nocturne.eventsmadeeasy.ui.BoardViewerDialog;
-import cc.nocturne.eventsmadeeasy.ui.BoardsPanel;
 import net.runelite.client.plugins.loottracker.LootReceived;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.DrawManager;
 import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.util.ImageUtil;
+
 import okhttp3.HttpUrl;
 import okhttp3.MediaType;
 import okhttp3.MultipartBody;
@@ -33,27 +62,6 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
-
-import javax.imageio.ImageIO;
-import javax.inject.Inject;
-import javax.sound.sampled.*;
-import javax.swing.SwingUtilities;
-import java.awt.Graphics2D;
-import java.awt.Image;
-import java.awt.Window;
-import java.awt.image.BufferedImage;
-import java.io.BufferedInputStream;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.lang.reflect.Method;
-import java.text.SimpleDateFormat;
-import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
-import java.util.Base64;
 
 @Slf4j
 @PluginDescriptor(
@@ -67,7 +75,6 @@ public class EventsPlugin extends Plugin
     private static final String ADMIN_GROUP  = "eventsplugin_admin";
     private static final String JOIN_GROUP   = "eventsplugin_join";
 
-
     private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
     private static final MediaType PNG  = MediaType.parse("image/png");
 
@@ -77,8 +84,6 @@ public class EventsPlugin extends Plugin
      */
     private static final String REGISTRY_ENDPOINT =
             "https://registry.events-made-easy.app/registry";
-
-
 
     // Boards
     private final List<EventBoard> boards = new ArrayList<>();
@@ -96,8 +101,9 @@ public class EventsPlugin extends Plugin
     private static final float SOUND_VOLUME = 0.10f;
     private static final int TOAST_SCREENSHOT_DELAY_MS = 900;
     private static final int SCREENSHOT_FUTURE_TIMEOUT_MS = 2500;
-    private static final String LOCAL_TOAST_WAV =
-            "/net/runelite/client/plugins/eventsplugin/toast.wav";
+
+    // ✅ IMPORTANT: this path must match where your toast.wav is located under src/main/resources
+    private static final String LOCAL_TOAST_WAV = "/cc/nocturne/eventsmadeeasy/toast.wav";
 
     @Inject private OkHttpClient httpClient;
     @Inject private Client client;
@@ -109,8 +115,8 @@ public class EventsPlugin extends Plugin
     @Inject private DrawManager drawManager;
     @Inject private OverlayManager overlayManager;
     @Inject private EventDropOverlay eventDropOverlay;
-
-    private final Gson gson = new GsonBuilder().create();
+    @Inject private Gson gson;
+    @Inject private AudioPlayer audioPlayer;
 
     private EventsPluginPanel panel;
     private NavigationButton navButton;
@@ -122,7 +128,6 @@ public class EventsPlugin extends Plugin
     private String soundUrl;
 
     private final Map<Integer, String> eligibleItems = new HashMap<>();
-    private final Map<String, byte[]> wavCache = new HashMap<>();
 
     @Provides
     EventsPluginConfig provideConfig(ConfigManager configManager)
@@ -152,17 +157,17 @@ public class EventsPlugin extends Plugin
             catch (Exception ignored) {}
         });
     }
+
     private boolean isLocalHost(String host)
     {
         if (host == null) return false;
-        String h = host.trim().toLowerCase(java.util.Locale.ROOT);
+        String h = host.trim().toLowerCase(Locale.ROOT);
         return h.equals("localhost") || h.equals("127.0.0.1") || h.equals("::1");
     }
 
     // ============================================================
-    // Registry URL handling (NO user input)
+    // Registry URL handling
     // ============================================================
-
 
     private HttpUrl getRegistryUrlOrNull()
     {
@@ -208,8 +213,6 @@ public class EventsPlugin extends Plugin
         return url;
     }
 
-
-
     private HttpUrl requireRegistryUrlOrNotify(String actionLabel)
     {
         HttpUrl url = getRegistryUrlOrNull();
@@ -219,12 +222,15 @@ public class EventsPlugin extends Plugin
             return url;
         }
 
-
         String msg = "Registry endpoint misconfigured in plugin code (REGISTRY_ENDPOINT).";
         log.warn("[EVENTS] {} blocked: {}", actionLabel, msg);
         uiStatus(actionLabel + " blocked: " + msg);
         return null;
     }
+
+    // ============================================================
+    // Startup / Shutdown
+    // ============================================================
 
     @Override
     protected void startUp()
@@ -272,7 +278,6 @@ public class EventsPlugin extends Plugin
         {
             autoJoinFromSaved();
         }
-
 
         log.info("Events Made Easy started");
     }
@@ -328,7 +333,6 @@ public class EventsPlugin extends Plugin
                 autoJoinFromSaved();
             }
         }
-
     }
 
     /**
@@ -405,23 +409,11 @@ public class EventsPlugin extends Plugin
 
     private boolean isPlayerLootType(LootReceived event)
     {
-        try
-        {
-            Method m = event.getClass().getMethod("getType");
-            Object type = m.invoke(event);
-            if (type == null) return false;
-            return "PLAYER".equalsIgnoreCase(type.toString());
-        }
-        catch (NoSuchMethodException ignored)
-        {
-            return false;
-        }
-        catch (Exception ex)
-        {
-            log.debug("[EVENTS] getType() reflection failed (ignoring)", ex);
-            return false;
-        }
+        // No reflection. LootReceived has a concrete getType() we can call directly.
+        final Object type = event.getType();
+        return type != null && "PLAYER".equalsIgnoreCase(type.toString());
     }
+
 
     private boolean isOtherPlayerNameInScene(String source)
     {
@@ -474,16 +466,8 @@ public class EventsPlugin extends Plugin
 
                 try { Thread.sleep(SOUND_DELAY_MS); } catch (InterruptedException ignored) {}
 
-                log.info("[SOUND] Attempting sound. soundUrl='{}' LOCAL_TOAST_WAV='{}'", soundUrl, LOCAL_TOAST_WAV);
-
-                boolean playedUrl = playWavFromUrl(soundUrl);
-                log.info("[SOUND] playWavFromUrl result={}", playedUrl);
-
-                if (!playedUrl)
-                {
-                    boolean playedLocal = playLocalWavResource(LOCAL_TOAST_WAV);
-                    log.info("[SOUND] playLocalWavResource result={}", playedLocal);
-                }
+                // ✅ Plugin-Hub friendly sound playback (no raw audio decoding)
+                playToastSound(SOUND_VOLUME);
 
                 try { Thread.sleep(TOAST_SCREENSHOT_DELAY_MS); } catch (InterruptedException ignored) {}
 
@@ -568,6 +552,33 @@ public class EventsPlugin extends Plugin
         });
 
         return fut;
+    }
+
+    // ============================================================
+    // ✅ AudioPlayer toast sound (simple + safe)
+    // ============================================================
+
+    private static float volume01ToGainDb(float volume01)
+    {
+        float v = Math.max(0f, Math.min(1f, volume01));
+        if (v <= 0.0001f)
+        {
+            return -80f;
+        }
+        return (float) (20.0 * Math.log10(v));
+    }
+
+    private void playToastSound(float volume01)
+    {
+        try
+        {
+            float gainDb = volume01ToGainDb(volume01);
+            audioPlayer.play(EventsPlugin.class, LOCAL_TOAST_WAV, gainDb);
+        }
+        catch (Exception e)
+        {
+            log.warn("Failed to play toast sound", e);
+        }
     }
 
     private void postDiscordWebhookWithScreenshot(
@@ -688,144 +699,6 @@ public class EventsPlugin extends Plugin
         }
     }
 
-    private void applyClipVolume(Clip clip, float volume01)
-    {
-        if (clip == null) return;
-
-        float v = Math.max(0f, Math.min(1f, volume01));
-        try
-        {
-            if (clip.isControlSupported(FloatControl.Type.MASTER_GAIN))
-            {
-                FloatControl gain = (FloatControl) clip.getControl(FloatControl.Type.MASTER_GAIN);
-
-                float dB;
-                if (v <= 0.0001f) dB = gain.getMinimum();
-                else
-                {
-                    dB = (float) (20.0 * Math.log10(v));
-                    dB = Math.max(gain.getMinimum(), Math.min(gain.getMaximum(), dB));
-                }
-
-                gain.setValue(dB);
-            }
-        }
-        catch (Exception ignored) {}
-    }
-
-    private boolean playWavFromUrl(String url)
-    {
-        if (url == null || url.isBlank())
-        {
-            return false;
-        }
-
-        byte[] wavBytes;
-        synchronized (wavCache)
-        {
-            wavBytes = wavCache.get(url);
-        }
-
-        if (wavBytes == null)
-        {
-            try
-            {
-                Request req = new Request.Builder().url(url).get().build();
-                try (Response resp = httpClient.newCall(req).execute())
-                {
-                    if (!resp.isSuccessful() || resp.body() == null)
-                    {
-                        log.warn("sound_url fetch failed HTTP {}: {}", resp.code(), resp.message());
-                        return false;
-                    }
-
-                    wavBytes = resp.body().bytes();
-                    synchronized (wavCache)
-                    {
-                        wavCache.put(url, wavBytes);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                log.warn("Failed to download sound_url: {}", url, ex);
-                return false;
-            }
-        }
-
-        return playWavBytes(wavBytes);
-    }
-
-    private boolean playLocalWavResource(String resourcePath)
-    {
-        try (InputStream is = EventsPlugin.class.getResourceAsStream(resourcePath))
-        {
-            if (is == null)
-            {
-                log.warn("[SOUND] Local resource NOT FOUND at path: {}", resourcePath);
-                return false;
-            }
-
-            byte[] bytes = is.readAllBytes();
-            boolean ok = playWavBytes(bytes);
-            log.info("[SOUND] Local resource loaded. bytes={} played={}", bytes.length, ok);
-            return ok;
-        }
-        catch (Exception ex)
-        {
-            log.warn("[SOUND] Error loading local wav resource: {}", resourcePath, ex);
-            return false;
-        }
-    }
-
-    private boolean playWavBytes(byte[] wavBytes)
-    {
-        if (wavBytes == null || wavBytes.length == 0)
-        {
-            return false;
-        }
-
-        try (AudioInputStream originalAis =
-                     AudioSystem.getAudioInputStream(new BufferedInputStream(new ByteArrayInputStream(wavBytes))))
-        {
-            AudioFormat baseFormat = originalAis.getFormat();
-
-            AudioFormat decodedFormat = new AudioFormat(
-                    AudioFormat.Encoding.PCM_SIGNED,
-                    baseFormat.getSampleRate(),
-                    16,
-                    baseFormat.getChannels(),
-                    baseFormat.getChannels() * 2,
-                    baseFormat.getSampleRate(),
-                    false
-            );
-
-            AudioInputStream pcmAis = AudioSystem.getAudioInputStream(decodedFormat, originalAis);
-
-            Clip clip = AudioSystem.getClip();
-            clip.open(pcmAis);
-
-            applyClipVolume(clip, SOUND_VOLUME);
-
-            clip.addLineListener(ev ->
-            {
-                if (ev.getType() == LineEvent.Type.STOP || ev.getType() == LineEvent.Type.CLOSE)
-                {
-                    try { clip.close(); } catch (Exception ignored) {}
-                }
-            });
-
-            clip.start();
-            log.debug("Played WAV (format {} -> PCM 16-bit), bytes={}", baseFormat, wavBytes.length);
-            return true;
-        }
-        catch (Exception ex)
-        {
-            log.warn("Failed to play wav bytes (likely unsupported format). bytes={}", wavBytes.length, ex);
-            return false;
-        }
-    }
-
     public void debugSimulateDrop(String source, int itemId, int qty)
     {
         if (currentEventCode == null || currentEventCode.isBlank())
@@ -924,7 +797,7 @@ public class EventsPlugin extends Plugin
 
                 uiStatus("Drop recorded: " + itemName + " x" + quantity);
             }
-            catch (IOException e)
+            catch (Exception e)
             {
                 log.error("recordDrop error", e);
                 uiStatus("Drop send error (backend offline?)");
@@ -1061,15 +934,11 @@ public class EventsPlugin extends Plugin
         joinEvent(eventCode, passcode, true);
     }
 
-
     public void joinEventFromUI(String eventCode, String passcode)
     {
-        // Option A: remember join credentials so Auto-join can work without config text fields
         saveLastJoin(eventCode, passcode);
-
         joinEvent(eventCode, passcode, false);
     }
-
 
     private void joinEvent(String eventCode, String passcode, boolean fromConfig)
     {
@@ -1274,7 +1143,6 @@ public class EventsPlugin extends Plugin
                 uiStatus("Saved " + packed.size() + " board(s) for " + eventCode + ".");
                 uiStatus("Boards refreshed.");
 
-                // Save only adminUser (NOT password)
                 saveAdminUser(eventCode, adminUser);
             }
             catch (Exception e)
@@ -1307,7 +1175,6 @@ public class EventsPlugin extends Plugin
         {
             throw new IllegalStateException("Registry endpoint blocked/misconfigured.");
         }
-
 
         Map<String, Object> req = new HashMap<>();
         req.put("action", "getBoardImage");
@@ -1384,7 +1251,6 @@ public class EventsPlugin extends Plugin
             String adminPass,
             String sheetWebhook,
             String discordWebhook
-
     )
     {
         HttpUrl registryUrl = requireRegistryUrlOrNotify("Create event");
@@ -1405,7 +1271,6 @@ public class EventsPlugin extends Plugin
         {
             if (ok)
             {
-                // Save only adminUser (NOT password)
                 saveAdminUser(eventCode, adminUser);
 
                 if (panel != null)
@@ -1417,16 +1282,11 @@ public class EventsPlugin extends Plugin
                     });
                 }
 
-                // Preload config (still requires adminPass passed in)
                 loadAdminConfigForConfigure(eventCode, adminUser, adminPass);
             }
         });
     }
 
-    /**
-     * Preload eligible drops + boards for configure screen.
-     * Save buttons stay disabled until we get success.
-     */
     public void loadAdminConfigForConfigure(String eventCode, String adminUser, String adminPass)
     {
         if (panel == null) return;
@@ -1525,7 +1385,6 @@ public class EventsPlugin extends Plugin
                 {
                     panel.setEligibleDropsForConfigure(uiItems);
                     panel.setBoardsForConfigure(uiBoards);
-
                     panel.appendStatus("Loaded saved config: " + uiItems.size() + " drops, " + uiBoards.size() + " boards.");
                 });
             }
@@ -1570,8 +1429,6 @@ public class EventsPlugin extends Plugin
             onError.accept("Registry endpoint blocked/misconfigured.");
             return;
         }
-
-
 
         Map<String, Object> bodyObj = new HashMap<>();
         bodyObj.put("action", "searchItems");
@@ -1646,7 +1503,6 @@ public class EventsPlugin extends Plugin
 
             if (ok)
             {
-                // Save only adminUser (NOT password)
                 saveAdminUser(eventCode, adminUser);
             }
         });
@@ -1709,8 +1565,8 @@ public class EventsPlugin extends Plugin
     }
 
     // ======================================================================
-// Join credential storage (Option A): store last eventCode + passcode
-// ======================================================================
+    // Join credential storage
+    // ======================================================================
 
     private String lastEventCodeKey()
     {
@@ -1759,9 +1615,6 @@ public class EventsPlugin extends Plugin
         configManager.unsetConfiguration(JOIN_GROUP, lastPasscodeKey());
     }
 
-
-
-
     // ======================================================================
     // Admin credential storage (SAFE): store only adminUser
     // ======================================================================
@@ -1778,10 +1631,6 @@ public class EventsPlugin extends Plugin
         return v == null ? "" : v;
     }
 
-    /**
-     * We intentionally do NOT store adminPass (Plugin Hub safety).
-     * Keeping this method for compatibility with your panel; it always returns "".
-     */
     public String getSavedAdminPass(String eventCode)
     {
         return "";
