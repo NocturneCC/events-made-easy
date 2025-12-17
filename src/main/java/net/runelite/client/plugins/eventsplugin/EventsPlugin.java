@@ -1,4 +1,4 @@
-package net.runelite.client.plugins.eventsplugin;
+package cc.nocturne.eventsmadeeasy.model;
 
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
