@@ -1,4 +1,4 @@
-package cc.nocturne.eventsmadeeasy.model;
+package cc.nocturne.eventsmadeeasy;
 
 import cc.nocturne.eventsmadeeasy.model.EventBoard;
 import cc.nocturne.eventsmadeeasy.ui.BoardsPanel;
