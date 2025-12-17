@@ -14,7 +14,6 @@ import java.awt.Image;
 import java.awt.Window;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
-import java.lang.reflect.Method;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -410,23 +409,11 @@ public class EventsPlugin extends Plugin
 
     private boolean isPlayerLootType(LootReceived event)
     {
-        try
-        {
-            Method m = event.getClass().getMethod("getType");
-            Object type = m.invoke(event);
-            if (type == null) return false;
-            return "PLAYER".equalsIgnoreCase(type.toString());
-        }
-        catch (NoSuchMethodException ignored)
-        {
-            return false;
-        }
-        catch (Exception ex)
-        {
-            log.debug("[EVENTS] getType() reflection failed (ignoring)", ex);
-            return false;
-        }
+        // No reflection. LootReceived has a concrete getType() we can call directly.
+        final Object type = event.getType();
+        return type != null && "PLAYER".equalsIgnoreCase(type.toString());
     }
+
 
     private boolean isOtherPlayerNameInScene(String source)
     {
