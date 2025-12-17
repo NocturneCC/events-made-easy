@@ -1,4 +1,4 @@
-package net.runelite.client.plugins.eventsplugin.ui;
+package cc.nocturne.eventsmadeeasy.model;
 
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.plugins.eventsplugin.EventsPlugin;
