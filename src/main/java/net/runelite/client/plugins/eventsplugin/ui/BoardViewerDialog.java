@@ -1,4 +1,4 @@
-package net.runelite.client.plugins.eventsplugin.ui;
+package cc.nocturne.eventsmadeeasy.model;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
