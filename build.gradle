@@ -19,7 +19,7 @@ dependencies {
     testImplementation group: 'net.runelite', name: 'client', version: runeLiteVersion
 }
 
-group = 'net.runelite.client.plugins.eventsplugin'
+group = 'cc.nocturne.eventsmadeeasy'
 version = '1.0.0'
 
 tasks.withType(JavaCompile).configureEach {
@@ -30,7 +30,7 @@ tasks.withType(JavaCompile).configureEach {
 tasks.register('shadowJar', Jar) {
     manifest {
         attributes(
-                'Main-Class': 'net.runelite.client.plugins.eventsplugin.EventsPlugin',
+                'Main-Class': 'cc.nocturne.eventsmadeeasy.EventsPlugin',
                 'Multi-Release': true
         )
     }
