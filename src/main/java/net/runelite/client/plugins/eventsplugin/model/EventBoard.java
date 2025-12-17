@@ -1,4 +1,4 @@
-package net.runelite.client.plugins.eventsplugin.model;
+package cc.nocturne.eventsmadeeasy.model;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
