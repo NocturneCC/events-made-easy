@@ -2,7 +2,6 @@ package cc.nocturne.eventsmadeeasy;
 
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.annotations.SerializedName;
 import com.google.inject.Provides;
 import lombok.extern.slf4j.Slf4j;
@@ -33,7 +32,6 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
-
 import javax.imageio.ImageIO;
 import javax.inject.Inject;
 import javax.sound.sampled.*;
@@ -54,6 +52,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.Base64;
+import javax.inject.Inject;
 
 @Slf4j
 @PluginDescriptor(
@@ -109,8 +108,7 @@ public class EventsPlugin extends Plugin
     @Inject private DrawManager drawManager;
     @Inject private OverlayManager overlayManager;
     @Inject private EventDropOverlay eventDropOverlay;
-
-    private final Gson gson = new GsonBuilder().create();
+    @Inject private Gson gson;
 
     private EventsPluginPanel panel;
     private NavigationButton navButton;
