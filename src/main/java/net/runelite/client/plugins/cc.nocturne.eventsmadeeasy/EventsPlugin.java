@@ -1,4 +1,4 @@
-package net.runelite.client.plugins.eventsplugin;
+package cc.nocturne.eventsmadeeasy.model;
 
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
@@ -17,9 +17,9 @@ import net.runelite.client.game.ItemManager;
 import net.runelite.client.game.ItemStack;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
-import net.runelite.client.plugins.eventsplugin.model.EventBoard;
-import net.runelite.client.plugins.eventsplugin.ui.BoardViewerDialog;
-import net.runelite.client.plugins.eventsplugin.ui.BoardsPanel;
+import cc.nocturne.eventsmadeeasy.model.EventBoard;
+import cc.nocturne.eventsmadeeasy.ui.BoardViewerDialog;
+import cc.nocturne.eventsmadeeasy.ui.BoardsPanel;
 import net.runelite.client.plugins.loottracker.LootReceived;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.DrawManager;

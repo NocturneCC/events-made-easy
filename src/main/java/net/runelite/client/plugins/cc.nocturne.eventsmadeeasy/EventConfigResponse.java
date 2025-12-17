@@ -1,6 +1,7 @@
-package net.runelite.client.plugins.eventsplugin;
+package cc.nocturne.eventsmadeeasy.model;
 
-import net.runelite.client.plugins.eventsplugin.model.EventBoard;
+
+import cc.nocturne.eventsmadeeasy.model.EventBoard;
 
 import java.util.List;
 
