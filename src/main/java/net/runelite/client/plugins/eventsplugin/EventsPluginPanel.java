@@ -1,4 +1,4 @@
-package net.runelite.client.plugins.eventsplugin;
+package cc.nocturne.eventsmadeeasy.model;
 
 import net.runelite.client.plugins.eventsplugin.model.EventBoard;
 import net.runelite.client.plugins.eventsplugin.ui.BoardsPanel;
