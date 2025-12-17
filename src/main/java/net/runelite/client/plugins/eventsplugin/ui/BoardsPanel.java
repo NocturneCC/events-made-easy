@@ -1,8 +1,8 @@
 package cc.nocturne.eventsmadeeasy.model;
 
 import lombok.extern.slf4j.Slf4j;
-import net.runelite.client.plugins.eventsplugin.EventsPlugin;
-import net.runelite.client.plugins.eventsplugin.model.EventBoard;
+import cc.nocturne.eventsmadeeasy.EventsPlugin;
+import cc.nocturne.eventsmadeeasy.model.EventBoard;
 
 import javax.swing.*;
 import java.awt.*;
